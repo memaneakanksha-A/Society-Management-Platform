@@ -13,6 +13,13 @@ const loadHouse = async (houseId: string | string[], societyId: string) => {
   return house;
 };
 
+const parseEmergencyContact = (raw: any): { name: string; phone: string; relation: string } | undefined => {
+  if (!raw) return undefined;
+  const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!obj || (!obj.name && !obj.phone && !obj.relation)) return undefined;
+  return { name: obj.name || "", phone: obj.phone || "", relation: obj.relation || "" };
+};
+
 export const assignOwner = asyncHandler(async (req: Request, res: Response) => {
   const societyId = req.societyId as string;
   const { houseId } = req.params;
@@ -21,7 +28,7 @@ export const assignOwner = asyncHandler(async (req: Request, res: Response) => {
   if (house.currentOwnerId)
     throw new ApiError(409, "House already has an owner. Use transfer instead");
 
-  const { name, phone, altPhone, email, idProofType, idProofNumber } = req.body as Record<
+  const { name, phone, altPhone, email, idProofType, idProofNumber, emergencyContact } = req.body as Record<
     string,
     any
   >;
@@ -36,6 +43,7 @@ export const assignOwner = asyncHandler(async (req: Request, res: Response) => {
     email,
     idProofType,
     idProofNumber,
+    emergencyContact: parseEmergencyContact(emergencyContact),
     isCurrent: true,
   });
 
@@ -58,7 +66,7 @@ export const updateOwner = asyncHandler(async (req: Request, res: Response) => {
   const owner = await Owner.findOne({ _id: id, societyId });
   if (!owner) throw new ApiError(404, "Owner not found");
 
-  const { name, phone, altPhone, email, idProofType, idProofNumber } = req.body as Record<
+  const { name, phone, altPhone, email, idProofType, idProofNumber, emergencyContact } = req.body as Record<
     string,
     any
   >;
@@ -68,6 +76,7 @@ export const updateOwner = asyncHandler(async (req: Request, res: Response) => {
   if (email !== undefined) owner.email = email;
   if (idProofType !== undefined) owner.idProofType = idProofType;
   if (idProofNumber !== undefined) owner.idProofNumber = idProofNumber;
+  if (emergencyContact !== undefined) owner.emergencyContact = parseEmergencyContact(emergencyContact);
 
   await owner.save();
   res.json({ success: true, owner });
@@ -85,6 +94,7 @@ export const transferOwner = asyncHandler(async (req: Request, res: Response) =>
     altPhone,
     idProofType,
     idProofNumber,
+    emergencyContact,
     transferDate,
     transferNote,
   } = req.body as Record<string, any>;
@@ -101,6 +111,7 @@ export const transferOwner = asyncHandler(async (req: Request, res: Response) =>
     altPhone,
     idProofType,
     idProofNumber,
+    emergencyContact: parseEmergencyContact(emergencyContact),
     fromDate: date,
     isCurrent: true,
     transferNote,

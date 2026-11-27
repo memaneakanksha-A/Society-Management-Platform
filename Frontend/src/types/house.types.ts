@@ -26,6 +26,12 @@ export interface OwnerRef {
   phone?: string;
 }
 
+export interface TenantRef {
+  _id: string;
+  name: string;
+  phone?: string;
+}
+
 export interface House {
   _id: string;
   societyId: string;
@@ -36,10 +42,16 @@ export interface House {
   occupancyStatus: OccupancyStatus;
   maintenancePayableBy: MaintenancePayableBy;
   currentOwnerId: OwnerRef | string | null;
-  currentTenantId?: string | null;
+  currentTenantId?: TenantRef | string | null;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface EmergencyContact {
+  name?: string;
+  phone?: string;
+  relation?: string;
 }
 
 export interface Owner {
@@ -56,6 +68,7 @@ export interface Owner {
   toDate?: string;
   isCurrent: boolean;
   transferNote?: string;
+  emergencyContact?: EmergencyContact;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -123,6 +136,25 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+export interface BulkDeletePayload {
+  ids: string[];
+}
+
+export interface BulkDeleteResult {
+  deleted: number;
+  blocked: { houseNo: string; reason: string }[];
+}
+
+export interface BulkChangeTypePayload {
+  ids?: string[];
+  fromTypeId?: string;
+  toTypeId: string;
+}
+
+export interface BulkChangeTypeResult {
+  updated: number;
+}
+
 export interface OwnerPayload {
   name: string;
   phone?: string;
@@ -130,6 +162,7 @@ export interface OwnerPayload {
   email?: string;
   idProofType?: string;
   idProofNumber?: string;
+  emergencyContact?: EmergencyContact;
 }
 
 export interface TransferPayload extends OwnerPayload {

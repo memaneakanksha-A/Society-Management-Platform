@@ -15,6 +15,10 @@ build/
 Backend/uploads/*
 !Backend/uploads/.gitkeep
 
+# Private tenant documents (Aadhaar, agreements, police verification)
+Backend/private-uploads/*
+!Backend/private-uploads/.gitkeep
+
 # Logs
 logs/
 *.log

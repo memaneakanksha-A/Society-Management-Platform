@@ -13,6 +13,10 @@ import type {
   ImportResult,
   OwnerPayload,
   TransferPayload,
+  BulkChangeTypePayload,
+  BulkDeletePayload,
+  BulkDeleteResult,
+  BulkChangeTypeResult,
 } from "@/types/house.types";
 
 export const getHouseTypes = async (): Promise<HouseType[]> => {
@@ -77,6 +81,16 @@ export const bulkCreateHouses = async (
     params: preview ? { preview: true } : undefined,
   });
   return data as BulkPreviewResult | BulkCreateResult;
+};
+
+export const bulkDeleteHouses = async (payload: BulkDeletePayload): Promise<BulkDeleteResult> => {
+  const { data } = await api.post("/admin/houses/bulk-delete", payload);
+  return data as BulkDeleteResult;
+};
+
+export const bulkChangeHouseType = async (payload: BulkChangeTypePayload): Promise<BulkChangeTypeResult> => {
+  const { data } = await api.post("/admin/houses/bulk-change-type", payload);
+  return data as BulkChangeTypeResult;
 };
 
 export const importHouses = async (file: File): Promise<ImportResult> => {

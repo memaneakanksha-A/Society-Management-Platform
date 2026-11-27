@@ -60,7 +60,11 @@ export const deleteHouseType = asyncHandler(async (req: Request, res: Response) 
   if (!mongoose.isValidObjectId(id)) throw new ApiError(400, "Invalid house type id");
 
   const count = await House.countDocuments({ houseTypeId: id, societyId: req.societyId });
-  if (count > 0) throw new ApiError(409, "Cannot delete: houses exist for this type");
+  if (count > 0) {
+    const err = new ApiError(409, `${count} houses use this type. Delete or move them to another type first.`);
+    (err as any).houseCount = count;
+    throw err;
+  }
 
   const ht = await HouseType.findOneAndDelete({ _id: id, societyId: req.societyId });
   if (!ht) throw new ApiError(404, "House type not found");

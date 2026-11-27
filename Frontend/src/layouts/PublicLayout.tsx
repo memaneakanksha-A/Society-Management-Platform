@@ -46,6 +46,10 @@ function Shell() {
     { to: `${base}/about`, label: "About", end: false },
     { to: `${base}/members`, label: "Body Members", end: false },
     { to: `${base}/gallery`, label: "Gallery", end: false },
+    { to: `${base}/news`, label: "News", end: false },
+    { to: `${base}/events`, label: "Events", end: false },
+    { to: `${base}/meetings`, label: "Meetings", end: false },
+    { to: `${base}/notices`, label: "Notices", end: false },
     { to: `${base}/contact`, label: "Contact", end: false },
   ];
 

@@ -6,7 +6,15 @@ import { getHome, getGallery } from "@/api/public.api";
 import { getErrorMessage } from "@/api/axios";
 import { fileUrl } from "@/utils/constants";
 import Loader from "@/components/common/Loader";
-import type { Banner, BodyMember, GalleryAlbum } from "@/types/public.types";
+import type {
+  Banner,
+  BodyMember,
+  GalleryAlbum,
+  PublicNews,
+  PublicEvent,
+  PublicNotice,
+} from "@/types/public.types";
+import { formatDate } from "@/utils/formatDate";
 
 function initials(name: string): string {
   return name
@@ -121,6 +129,9 @@ export default function Home() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [members, setMembers] = useState<BodyMember[]>([]);
   const [albums, setAlbums] = useState<GalleryAlbum[]>([]);
+  const [news, setNews] = useState<PublicNews[]>([]);
+  const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [notices, setNotices] = useState<PublicNotice[]>([]);
   const [loading, setLoading] = useState(true);
 
   const slug = society?.slug ?? "";
@@ -135,6 +146,9 @@ export default function Home() {
         setBanners(home.banners);
         setMembers(home.members);
         setAlbums(gal);
+        setNews(home.news ?? []);
+        setEvents(home.events ?? []);
+        setNotices(home.notices ?? []);
       })
       .catch((err) => {
         if (active) toast.error(getErrorMessage(err));
@@ -230,9 +244,72 @@ export default function Home() {
         )}
       </section>
 
-      <section className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-400">
-        News, Events &amp; Meetings &mdash; coming soon
-      </section>
+      {notices.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Notices</h2>
+            <Link to={`/s/${society.slug}/notices`} className="text-sm text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {notices.slice(0, 3).map((n) => (
+              <div key={n._id} className={`rounded-lg bg-white p-3 shadow ${n.isImportant ? "border-l-4 border-amber-400" : ""}`}>
+                <p className="font-medium text-gray-900">{n.title}</p>
+                <p className="text-xs text-gray-400">
+                  {n.publishOn ? formatDate(n.publishOn) : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {news.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">News</h2>
+            <Link to={`/s/${society.slug}/news`} className="text-sm text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {news.map((n) => (
+              <Link key={n._id} to={`/s/${society.slug}/news/${n._id}`} className="group rounded-lg bg-white p-4 shadow">
+                <p className="text-xs text-gray-400">{formatDate(n.date)}</p>
+                <p className="mt-1 font-medium text-gray-900 group-hover:text-indigo-600">{n.title}</p>
+                {n.summary && <p className="mt-1 line-clamp-2 text-sm text-gray-500">{n.summary}</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {events.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Upcoming Events</h2>
+            <Link to={`/s/${society.slug}/events`} className="text-sm text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {events.map((e) => (
+              <div key={e._id} className="rounded-lg bg-white p-4 shadow">
+                <p className="text-xs font-medium text-indigo-600">{formatDate(e.date)}</p>
+                <p className="mt-1 font-medium text-gray-900">{e.title}</p>
+                <p className="text-sm text-gray-500">{[e.time, e.venue].filter(Boolean).join(" · ") || "Details coming soon"}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {notices.length === 0 && news.length === 0 && events.length === 0 && (
+        <section className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-400">
+          Updates will appear here soon
+        </section>
+      )}
     </div>
   );
 }

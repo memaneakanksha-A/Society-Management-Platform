@@ -5,18 +5,37 @@ export type Role = "superadmin" | "admin" | "member" | "tenant";
 
 export interface IUser extends Document {
   name: string;
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
   role: Role;
   societyId?: mongoose.Types.ObjectId;
+  houseId?: mongoose.Types.ObjectId;
+  linkedOwnerId?: mongoose.Types.ObjectId;
+  linkedTenantId?: mongoose.Types.ObjectId;
   isActive: boolean;
+  mustChangePassword: boolean;
   comparePassword(plain: string): Promise<boolean>;
 }
 
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+      default: undefined,
+    },
+    phone: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      default: undefined,
+    },
     password: { type: String, required: true, minlength: 6, select: false },
     role: {
       type: String,
@@ -24,10 +43,16 @@ const userSchema = new Schema<IUser>(
       default: "member",
     },
     societyId: { type: Schema.Types.ObjectId, ref: "Society", default: undefined },
+    houseId: { type: Schema.Types.ObjectId, ref: "House", default: undefined },
+    linkedOwnerId: { type: Schema.Types.ObjectId, ref: "Owner", default: undefined },
+    linkedTenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: undefined },
     isActive: { type: Boolean, default: true },
+    mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+userSchema.index({ societyId: 1, houseId: 1, role: 1 });
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

@@ -18,6 +18,7 @@ const empty: OwnerPayload = {
   email: "",
   idProofType: "",
   idProofNumber: "",
+  emergencyContact: { name: "", phone: "", relation: "" },
 };
 
 export default function OwnerFormModal({ open, mode, initial, loading, onClose, onSubmit }: Props) {
@@ -34,6 +35,11 @@ export default function OwnerFormModal({ open, mode, initial, loading, onClose, 
               email: initial.email || "",
               idProofType: initial.idProofType || "",
               idProofNumber: initial.idProofNumber || "",
+              emergencyContact: {
+                name: initial.emergencyContact?.name || "",
+                phone: initial.emergencyContact?.phone || "",
+                relation: initial.emergencyContact?.relation || "",
+              },
             }
           : empty
       );
@@ -43,7 +49,12 @@ export default function OwnerFormModal({ open, mode, initial, loading, onClose, 
   const set = (key: keyof OwnerPayload, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const setEc = (key: "name" | "phone" | "relation", value: string) =>
+    setForm((f) => ({ ...f, emergencyContact: { ...f.emergencyContact, [key]: value } }));
+
   const submit = () => {
+    const ec = form.emergencyContact;
+    const hasEc = !!(ec?.name?.trim() || ec?.phone?.trim() || ec?.relation?.trim());
     const payload: OwnerPayload = {
       name: form.name.trim(),
       phone: form.phone?.trim() || undefined,
@@ -51,6 +62,13 @@ export default function OwnerFormModal({ open, mode, initial, loading, onClose, 
       email: form.email?.trim() || undefined,
       idProofType: form.idProofType?.trim() || undefined,
       idProofNumber: form.idProofNumber?.trim() || undefined,
+      emergencyContact: hasEc
+        ? {
+            name: ec?.name?.trim() || "",
+            phone: ec?.phone?.trim() || "",
+            relation: ec?.relation?.trim() || "",
+          }
+        : undefined,
     };
     onSubmit(payload);
   };
@@ -131,6 +149,35 @@ export default function OwnerFormModal({ open, mode, initial, loading, onClose, 
               onChange={(e) => set("idProofNumber", e.target.value)}
               className="w-full rounded border px-3 py-2 outline-none focus:border-indigo-500"
             />
+          </div>
+        </div>
+        <div className="border-t pt-3">
+          <p className="mb-2 text-sm font-medium text-slate-700">Emergency Contact</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">Name</label>
+              <input
+                value={form.emergencyContact?.name || ""}
+                onChange={(e) => setEc("name", e.target.value)}
+                className="w-full rounded border px-3 py-2 outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">Phone</label>
+              <input
+                value={form.emergencyContact?.phone || ""}
+                onChange={(e) => setEc("phone", e.target.value)}
+                className="w-full rounded border px-3 py-2 outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">Relation</label>
+              <input
+                value={form.emergencyContact?.relation || ""}
+                onChange={(e) => setEc("relation", e.target.value)}
+                className="w-full rounded border px-3 py-2 outline-none focus:border-indigo-500"
+              />
+            </div>
           </div>
         </div>
       </div>

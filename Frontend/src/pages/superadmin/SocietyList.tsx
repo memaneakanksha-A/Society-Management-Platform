@@ -4,8 +4,11 @@ import toast from "react-hot-toast";
 import { getSocieties, toggleSocietyStatus } from "@/api/superadmin.api";
 import { getErrorMessage } from "@/api/axios";
 import type { Society } from "@/types/society.types";
-import Loader from "@/components/common/Loader";
-
+import { Button } from "@/components/ui/Button";
+import { DataTable } from "@/components/ui/DataTable";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Icon } from "@/components/ui/icons";
+import Badge from "@/components/common/Badge";
 export default function SocietyList() {
   const [societies, setSocieties] = useState<Society[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,74 +37,114 @@ export default function SocietyList() {
     }
   };
 
-  if (loading) return <Loader />;
+  const handleViewSite = (slug: string, status: string) => {
+    if (status !== "active") return;
+    window.open(`/s/${slug}`, "_blank", "noopener,noreferrer");
+  };
+
+  const columns = [
+    {
+      key: "name",
+      header: "Name",
+      render: (row: Society) => (
+        <span className="font-medium text-slate-900">{row.name}</span>
+      ),
+    },
+    {
+      key: "slug",
+      header: "Slug",
+      render: (row: Society) => (
+        <span className="text-slate-500 font-mono">{row.slug}</span>
+      ),
+    },
+    {
+      key: "totalHouses",
+      header: "Houses",
+      render: (row: Society) => (
+        <span className="text-slate-700">{row.totalHouses}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (row: Society) => (
+        <Badge variant={row.status === "active" ? "green" : "red"}>
+          {row.status}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      width: "180px",
+      render: (row: Society) => (
+        <div className="flex items-center gap-2 justify-end">
+          <Link
+            to={`/superadmin/societies/${row._id}/edit`}
+            className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+            aria-label={`Edit ${row.name}`}
+          >
+            <Icon name="edit" size={16} />
+          </Link>
+          {row.status === "active" && (
+            <button
+              onClick={() => handleViewSite(row.slug, row.status)}
+              className="text-slate-400 hover:text-green-600 transition-colors p-1"
+              aria-label={`View website for ${row.name}`}
+              title="View Website"
+            >
+              <Icon name="externalLink" size={16} />
+            </button>
+          )}
+          <button
+            onClick={() => handleToggle(row._id)}
+            className={`text-slate-400 hover:underline transition-colors p-1 ${
+              row.status === "active" ? "hover:text-red-600" : "hover:text-green-600"
+            }`}
+            aria-label={`${row.status === "active" ? "Deactivate" : "Activate"} ${row.name}`}
+          >
+            <Icon name={row.status === "active" ? "lock" : "unlock"} size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-10">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Societies</h1>
-        <Link
-          to="/superadmin/societies/new"
-          className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
-        >
-          + Add Society
-        </Link>
-      </div>
+      <PageHeader
+        title="Societies"
+        subtitle={`Managing ${societies.length} societies`}
+        actions={
+          <Link to="/superadmin/societies/new">
+            <Button variant="primary" leftIcon="plus">Add Society</Button>
+          </Link>
+        }
+      />
 
-      <div className="overflow-x-auto rounded-lg bg-white shadow">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Slug</th>
-              <th className="px-4 py-3">Houses</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {societies.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  No societies yet
-                </td>
-              </tr>
-            )}
-            {societies.map((s) => (
-              <tr key={s._id} className="border-t">
-                <td className="px-4 py-3 font-medium">{s.name}</td>
-                <td className="px-4 py-3 text-gray-500">{s.slug}</td>
-                <td className="px-4 py-3">{s.totalHouses}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs ${
-                      s.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {s.status}
-                  </span>
-                </td>
-                <td className="space-x-3 px-4 py-3 text-right">
-                  <Link
-                    to={`/superadmin/societies/${s._id}/edit`}
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => handleToggle(s._id)}
-                    className="text-gray-600 hover:underline"
-                  >
-                    {s.status === "active" ? "Deactivate" : "Activate"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={societies}
+        keyExtractor={(row) => row._id}
+        loading={loading}
+        emptyMessage="No societies yet."
+        emptyIcon="building"
+        emptyAction={
+          <Link to="/superadmin/societies/new">
+            <Button variant="primary" leftIcon="plus">Add Society</Button>
+          </Link>
+        }
+        striped
+        hoverable
+      />
     </div>
   );
 }

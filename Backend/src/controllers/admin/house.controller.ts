@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import House from "../../models/House";
 import HouseType from "../../models/HouseType";
 import Owner from "../../models/Owner";
+import Tenant from "../../models/Tenant";
+import Vehicle from "../../models/Vehicle";
+import FamilyMember from "../../models/FamilyMember";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiError } from "../../utils/ApiError";
 import { importHousesFromFile } from "../../services/import.service";
@@ -45,7 +48,8 @@ export const getHouses = asyncHandler(async (req: Request, res: Response) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .populate("houseTypeId", "code name")
-      .populate("currentOwnerId", "name phone"),
+      .populate("currentOwnerId", "name phone")
+      .populate("currentTenantId", "name phone"),
     House.countDocuments(filter),
   ]);
 
@@ -56,7 +60,18 @@ export const getHouseStats = asyncHandler(async (req: Request, res: Response) =>
   const societyId = req.societyId as string;
   const sid = asObjectId(societyId);
 
-  const [total, ownerLiving, rented, vacant, withoutOwner, byTypeAgg] = await Promise.all([
+  const [
+    total,
+    ownerLiving,
+    rented,
+    vacant,
+    withoutOwner,
+    byTypeAgg,
+    activeTenants,
+    expiringSoon,
+    expiredTenants,
+    vacatedTenants,
+  ] = await Promise.all([
     House.countDocuments({ societyId }),
     House.countDocuments({ societyId, occupancyStatus: "owner_living" }),
     House.countDocuments({ societyId, occupancyStatus: "rented" }),
@@ -66,6 +81,14 @@ export const getHouseStats = asyncHandler(async (req: Request, res: Response) =>
       { $match: { societyId: sid } },
       { $group: { _id: "$houseTypeId", count: { $sum: 1 } } },
     ]),
+    Tenant.countDocuments({ societyId, status: "active" }),
+    Tenant.countDocuments({
+      societyId,
+      status: "active",
+      agreementEndDate: { $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), $gte: new Date() },
+    }),
+    Tenant.countDocuments({ societyId, status: "active", agreementEndDate: { $lt: new Date() } }),
+    Tenant.countDocuments({ societyId, status: "vacated" }),
   ]);
 
   const byType = await Promise.all(
@@ -75,7 +98,21 @@ export const getHouseStats = asyncHandler(async (req: Request, res: Response) =>
     })
   );
 
-  res.json({ success: true, stats: { total, ownerLiving, rented, vacant, withoutOwner, byType } });
+  res.json({
+    success: true,
+    stats: {
+      total,
+      ownerLiving,
+      rented,
+      vacant,
+      withoutOwner,
+      byType,
+      activeTenants,
+      expiringSoon,
+      expiredTenants,
+      vacatedTenants,
+    },
+  });
 });
 
 export const getHouse = asyncHandler(async (req: Request, res: Response) => {
@@ -84,14 +121,26 @@ export const getHouse = asyncHandler(async (req: Request, res: Response) => {
 
   const house = await House.findOne({ _id: id, societyId: req.societyId })
     .populate("houseTypeId", "code name")
-    .populate("currentOwnerId", "name phone");
+    .populate("currentOwnerId", "name phone")
+    .populate("currentTenantId", "name phone");
   if (!house) throw new ApiError(404, "House not found");
 
   const ownerHistory = await Owner.find({ houseId: id, societyId: req.societyId }).sort({
     fromDate: -1,
   });
 
-  res.json({ success: true, house, currentOwner: house.currentOwnerId, ownerHistory });
+  // Get current tenant
+  const currentTenant = await Tenant.findOne({ houseId: id, societyId: req.societyId, status: "active" })
+    .select("name phone agreementStartDate agreementEndDate rentAmount status")
+    .lean();
+
+  // Get vehicles count
+  const vehiclesCount = await Vehicle.countDocuments({ houseId: id, societyId: req.societyId });
+
+  // Get family members count
+  const familyCount = await FamilyMember.countDocuments({ houseId: id, societyId: req.societyId });
+
+  res.json({ success: true, house, currentOwner: house.currentOwnerId, ownerHistory, currentTenant, vehiclesCount, familyCount });
 });
 
 export const createHouse = asyncHandler(async (req: Request, res: Response) => {
@@ -171,6 +220,83 @@ export const deleteHouse = asyncHandler(async (req: Request, res: Response) => {
   if (!house) throw new ApiError(404, "House not found");
 
   res.json({ success: true, message: "House deleted" });
+});
+
+export const bulkDeleteHouses = asyncHandler(async (req: Request, res: Response) => {
+  const societyId = req.societyId as string;
+  const { ids } = req.body as { ids: string[] };
+
+  if (!Array.isArray(ids) || ids.length === 0) throw new ApiError(400, "ids array is required");
+  if (ids.length > 500) throw new ApiError(400, "Maximum 500 houses per request");
+
+  const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+  if (validIds.length === 0) {
+    return res.json({ success: true, deleted: 0, blocked: [] });
+  }
+
+  const houses = await House.find({ _id: { $in: validIds }, societyId })
+    .select("houseNo currentOwnerId currentTenantId")
+    .lean();
+
+  const houseMap = new Map(houses.map((h) => [String(h._id), h]));
+  const blocked: { houseNo: string; reason: string }[] = [];
+  const deletableIds: mongoose.Types.ObjectId[] = [];
+
+  for (const id of validIds) {
+    const house = houseMap.get(id);
+    if (!house) {
+      blocked.push({ houseNo: id, reason: "Not found" });
+      continue;
+    }
+    const ownerCount = await Owner.countDocuments({ houseId: id, societyId });
+    if (ownerCount > 0) {
+      blocked.push({ houseNo: house.houseNo, reason: "Has owner records" });
+      continue;
+    }
+    const tenantCount = await Tenant.countDocuments({ houseId: id, societyId });
+    if (tenantCount > 0) {
+      blocked.push({ houseNo: house.houseNo, reason: "Has tenant records" });
+      continue;
+    }
+    deletableIds.push(new mongoose.Types.ObjectId(id));
+  }
+
+  let deleted = 0;
+  if (deletableIds.length > 0) {
+    const result = await House.deleteMany({ _id: { $in: deletableIds }, societyId });
+    deleted = result.deletedCount ?? 0;
+  }
+
+  res.json({ success: true, deleted, blocked });
+});
+
+export const bulkChangeHouseType = asyncHandler(async (req: Request, res: Response) => {
+  const societyId = req.societyId as string;
+  const { ids, fromTypeId, toTypeId } = req.body as {
+    ids?: string[];
+    fromTypeId?: string;
+    toTypeId: string;
+  };
+
+  if (!toTypeId || !mongoose.isValidObjectId(toTypeId)) throw new ApiError(400, "Invalid toTypeId");
+  await assertTypeBelongs(toTypeId, societyId);
+
+  let filter: Record<string, any> = { societyId };
+  if (ids && ids.length > 0) {
+    const validIds = ids.filter((id) => mongoose.isValidObjectId(id));
+    if (validIds.length === 0) throw new ApiError(400, "No valid house ids provided");
+    if (validIds.length > 500) throw new ApiError(400, "Maximum 500 houses per request");
+    filter._id = { $in: validIds };
+  } else if (fromTypeId) {
+    if (!mongoose.isValidObjectId(fromTypeId)) throw new ApiError(400, "Invalid fromTypeId");
+    await assertTypeBelongs(fromTypeId, societyId);
+    filter.houseTypeId = fromTypeId;
+  } else {
+    throw new ApiError(400, "Provide either ids array or fromTypeId");
+  }
+
+  const result = await House.updateMany(filter, { houseTypeId: toTypeId });
+  res.json({ success: true, updated: result.modifiedCount ?? 0 });
 });
 
 export const bulkCreateHouses = asyncHandler(async (req: Request, res: Response) => {
