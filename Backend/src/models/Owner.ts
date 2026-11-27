@@ -20,6 +20,8 @@ export interface IOwner extends Document {
   isCurrent: boolean;
   transferNote?: string;
   emergencyContact?: IEmergencyContact;
+  whatsappOptIn?: boolean;
+  optOutAt?: Date;
 }
 
 const emergencyContactSchema = new Schema<IEmergencyContact>(
@@ -46,6 +48,8 @@ const ownerSchema = new Schema<IOwner>(
     isCurrent: { type: Boolean, default: true },
     transferNote: { type: String, trim: true },
     emergencyContact: emergencyContactSchema,
+    whatsappOptIn: { type: Boolean, default: true },
+    optOutAt: { type: Date },
   },
   { timestamps: true }
 );

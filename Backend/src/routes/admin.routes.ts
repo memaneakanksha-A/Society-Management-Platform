@@ -102,6 +102,7 @@ import noticeRoutes from "./admin/notice.routes";
 import complaintRoutes from "./admin/complaint.routes";
 import serviceRequestRoutes from "./admin/serviceRequest.routes";
 import houseDocumentRoutes from "./admin/houseDocument.routes";
+import whatsappRoutes from "./admin/whatsapp.routes";
 
 const importUpload = multer({
   storage: multer.memoryStorage(),
@@ -130,6 +131,7 @@ router.use(noticeRoutes);
 router.use(complaintRoutes);
 router.use(serviceRequestRoutes);
 router.use(houseDocumentRoutes);
+router.use(whatsappRoutes);
 
 router.get("/banners", getBanners);
 router.post("/banners", uploadTo("banners").single("image"), createBanner);

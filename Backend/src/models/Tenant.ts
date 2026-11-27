@@ -56,6 +56,8 @@ export interface ITenant extends Document {
   vacatedOn?: Date;
   vacateReason?: string;
   remarks?: string;
+  whatsappOptIn?: boolean;
+  optOutAt?: Date;
 
   // Computed properties (virtuals)
   agreementState: AgreementState;
@@ -128,6 +130,8 @@ const tenantSchema = new Schema<ITenant>(
     vacatedOn: { type: Date },
     vacateReason: { type: String, trim: true },
     remarks: { type: String, trim: true },
+    whatsappOptIn: { type: Boolean, default: true },
+    optOutAt: { type: Date },
   },
   { timestamps: true }
 );
